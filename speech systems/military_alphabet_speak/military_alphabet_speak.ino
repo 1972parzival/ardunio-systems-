@@ -10,7 +10,7 @@
 // in its place for the letter Y.
 //
 // Input string may be upper or lower case — handled via toupper().
-//
+/
 // IMPORTANT: ENABLE_PITCH must be defined BEFORE #include <Talkie.h>
 // to activate the pitch-controlled say() overload.
 
@@ -596,7 +596,7 @@ void setup() {
   // ----------------------------------------------------------
   // SPEAK MESSAGE
   // ----------------------------------------------------------
-  
+
   voice.say(tmpdyfwntly, 0.6);
   delay(1000);
   for (int i = 0; message[i] != '\0'; i++) {
