@@ -14,7 +14,7 @@ import numpy as np
 # ------------------------------------------------------------------
 # Configuration
 # ------------------------------------------------------------------
-DURATION   = 1.5          # seconds to record
+DURATION   = 2          # seconds to record
 SAMPLE_RATE = 8000        # Talkie requires 8 kHz
 CHANNELS   = 1
 WORD_NAME  = "MYWORD"     # change this → becomes spMYWORD
