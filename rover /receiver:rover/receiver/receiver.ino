@@ -48,8 +48,8 @@ void printLogo() {
 //                    PIN SETTINGS
 // =====================================================
 
-const int ESC1_PIN = 9;   // Motor 1 - Left
-const int ESC2_PIN = 10;  // Motor 2 - Right
+const int ESC1_PIN = 10;   // Motor 1 - Left
+const int ESC2_PIN = 9;  // Motor 2 - Right
 
 // Drives a MOSFET/relay that switches the ESCs' power rail.
 // NOT wired directly to the ESCs — a GPIO pin can't source
@@ -88,11 +88,11 @@ const int W_RIGHT = 10;
 const int S_LEFT  = 0;
 const int S_RIGHT = 0;
 
-const int A_LEFT  = 0;
+const int A_LEFT  = 7;
 const int A_RIGHT = 10;
 
 const int D_LEFT  = 10;
-const int D_RIGHT = 0;
+const int D_RIGHT = 7;
 
 const int E_LEFT  = 20;
 const int E_RIGHT = 20;
