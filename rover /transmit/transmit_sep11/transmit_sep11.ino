@@ -4,22 +4,22 @@
 // =====================================================
 //                    LoRa SETTINGS
 // =====================================================
-// This is the CONTROLLER/transmitter board - separate from
-// the rover, so there's no clash with ESC pins here. Using
-// the same pins as the original two-way example.
 #define nss 7
 #define rst 8
 #define dio0 9
 
 #define LORA_FREQUENCY 433E6
 
-// Addressing must match the rover receiver:
-//   receiver's LOCAL_ADDRESS = 0x01  -> that's our destination
-//   this controller's own address     -> 0xBB (from the example)
 byte localAddress = 0xBB;
 byte destination  = 0x01;
 
 byte msgCount = 0;
+
+// Fixed-size input buffer instead of String - avoids heap
+// allocation/fragmentation on a memory-constrained Uno.
+#define MAX_LINE_LEN 32
+char lineBuf[MAX_LINE_LEN + 1];
+int lineLen = 0;
 
 // =====================================================
 //                       SETUP
@@ -30,86 +30,87 @@ void setup() {
   Serial.begin(115200);
   delay(500);
 
-  Serial.println("************************************************");
-  Serial.println("        ROVER LoRa CONTROLLER (transmitter)");
-  Serial.println("************************************************");
+  Serial.println(F("************************************************"));
+  Serial.println(F("        ROVER LoRa CONTROLLER (transmitter)"));
+  Serial.println(F("************************************************"));
 
   LoRa.setPins(nss, rst, dio0);
 
   if (!LoRa.begin(LORA_FREQUENCY)) {
-    Serial.println("Starting LoRa failed!");
+    Serial.println(F("Starting LoRa failed!"));
     while (1) {
       delay(100);
     }
   }
 
-  Serial.print("LoRa ready @ ");
+  Serial.print(F("LoRa ready @ "));
   Serial.print(LORA_FREQUENCY / 1E6);
-  Serial.println(" MHz");
+  Serial.println(F(" MHz"));
 
-  Serial.print("Local address: 0x");
+  Serial.print(F("Local address: 0x"));
   Serial.println(localAddress, HEX);
 
-  Serial.print("Target rover address: 0x");
+  Serial.print(F("Target rover address: 0x"));
   Serial.println(destination, HEX);
 
   Serial.println();
-  Serial.println("Type a command and press enter:");
-  Serial.println("  W = Forward");
-  Serial.println("  A = Left");
-  Serial.println("  S = Stop");
-  Serial.println("  D = Right");
-  Serial.println("  E = Boost");
-  Serial.println("  Q = Run sequence");
-  Serial.println("  \"L R\" = manual throttle percentages, e.g. \"10 15\"");
+  Serial.println(F("Type a command and press enter:"));
+  Serial.println(F("  W = Forward"));
+  Serial.println(F("  A = Left"));
+  Serial.println(F("  S = Stop"));
+  Serial.println(F("  D = Right"));
+  Serial.println(F("  E = Boost"));
+  Serial.println(F("  Q = Run sequence"));
+  Serial.println(F("  \"L R\" = manual throttle percentages, e.g. \"10 15\""));
   Serial.println();
 }
 
 // =====================================================
 //                  SEND ONE PACKET
 // =====================================================
-// Same header format the rover receiver expects:
 // [destination][sender][msgId][length][payload...]
-void sendMessage(String outgoing) {
+void sendMessage(char* outgoing, int len) {
 
   LoRa.beginPacket();
   LoRa.write(destination);
   LoRa.write(localAddress);
   LoRa.write(msgCount);
-  LoRa.write((byte)outgoing.length());
-  LoRa.print(outgoing);
+  LoRa.write((byte)len);
+  LoRa.write((const uint8_t*)outgoing, len);
   LoRa.endPacket();
 
-  Serial.print("Sent -> \"");
+  Serial.print(F("Sent -> \""));
   Serial.print(outgoing);
-  Serial.print("\"  (id ");
+  Serial.print(F("\"  (id "));
   Serial.print(msgCount);
-  Serial.println(")");
+  Serial.println(F(")"));
 
   msgCount++;
-  // byte wraps 255 -> 0 on its own, no manual check needed.
 }
 
 // =====================================================
 //                        LOOP
 // =====================================================
-// Reads one line at a time from Serial (the operator's
-// keyboard / a joystick bridge / whatever is driving this
-// controller) and forwards it as a LoRa packet, unmodified,
-// to the rover. The rover's own command parsing (single
-// letters or "L R" throttle pairs) handles the payload -
-// this side just needs to relay text reliably.
+// Reads one line at a time from Serial into a fixed buffer
+// (no String growth) and forwards it as-is to the rover.
 void loop() {
 
-  if (Serial.available() > 0) {
+  while (Serial.available() > 0) {
 
-    String line = Serial.readStringUntil('\n');
-    line.trim();
+    char c = Serial.read();
 
-    if (line.length() == 0) {
-      return;
+    if (c == '\n' || c == '\r') {
+
+      if (lineLen > 0) {
+        lineBuf[lineLen] = '\0';
+        sendMessage(lineBuf, lineLen);
+        lineLen = 0;
+      }
+
+    } else if (lineLen < MAX_LINE_LEN) {
+
+      lineBuf[lineLen++] = c;
     }
-
-    sendMessage(line);
+    // characters beyond MAX_LINE_LEN are silently dropped
   }
 }
