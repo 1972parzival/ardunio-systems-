@@ -433,7 +433,19 @@ void updateTimeout() {
 //   "W"      -> single-letter WASD/E/Q command
 void processIncomingCommand(String msg) {
 
+  Serial.print("processIncomingCommand entered, raw length: ");
+  Serial.println(msg.length());
+
   msg.trim();
+
+  Serial.print("After trim, length: ");
+  Serial.print(msg.length());
+  Serial.print(", first byte as int: ");
+  if (msg.length() > 0) {
+    Serial.println((int)msg.charAt(0));
+  } else {
+    Serial.println("N/A (empty)");
+  }
 
   if (msg.length() == 0) {
     return;
@@ -571,7 +583,9 @@ void checkLoRa() {
   Serial.print(" msg: ");
   Serial.println(incoming);
 
+  Serial.println("Calling processIncomingCommand...");
   processIncomingCommand(incoming);
+  Serial.println("Returned from processIncomingCommand.");
 }
 
 // =====================================================
