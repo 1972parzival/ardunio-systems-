@@ -7,7 +7,6 @@
 #define nss 7
 #define rst 8
 #define dio0 9
-
 #define LORA_FREQUENCY 433E6
 
 byte localAddress = 0xBB;
@@ -21,6 +20,12 @@ byte msgCount = 0;
 char lineBuf[MAX_LINE_LEN + 1];
 int lineLen = 0;
 
+// If no line-ending character shows up (e.g. Serial Monitor set
+// to "No line ending"), send whatever's buffered after this many
+// ms of silence instead of waiting forever for '\n'/'\r'.
+unsigned long lastByteTime = 0;
+const unsigned long IDLE_FLUSH_MS = 150;
+
 // =====================================================
 //                       SETUP
 // =====================================================
@@ -28,8 +33,9 @@ int lineLen = 0;
 void setup() {
 
   Serial.begin(115200);
-  delay(500);
-
+  delay(1000);
+  Serial.println("(=======================================================================)");
+  Serial.println("");
   Serial.println(F("************************************************"));
   Serial.println(F("        ROVER LoRa CONTROLLER (transmitter)"));
   Serial.println(F("************************************************"));
@@ -84,6 +90,16 @@ void sendMessage(char* outgoing, int len) {
   Serial.print(F("\"  (id "));
   Serial.print(msgCount);
   Serial.println(F(")"));
+  tone(2, 20);
+  delay(50);
+  tone(2, 15);
+  delay(50);
+  tone(2, 15);
+  delay(50);
+  tone(2, 30);
+  noTone(2);
+
+  
 
   msgCount++;
 }
@@ -98,6 +114,7 @@ void loop() {
   while (Serial.available() > 0) {
 
     char c = Serial.read();
+    lastByteTime = millis();
 
     if (c == '\n' || c == '\r') {
 
@@ -112,5 +129,17 @@ void loop() {
       lineBuf[lineLen++] = c;
     }
     // characters beyond MAX_LINE_LEN are silently dropped
+  }
+
+  // Fallback: no line-ending character seen (e.g. Serial Monitor
+  // set to "No line ending"), so flush whatever's buffered once
+  // typing has paused for a bit.
+  if (
+    lineLen > 0 &&
+    (millis() - lastByteTime) >= IDLE_FLUSH_MS
+  ) {
+    lineBuf[lineLen] = '\0';
+    sendMessage(lineBuf, lineLen);
+    lineLen = 0;
   }
 }
