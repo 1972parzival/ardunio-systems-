@@ -61,8 +61,27 @@ const int ESC_POWER_PIN = 8;
 //                 THROTTLE SETTINGS
 // =====================================================
 
-const int MIN_MOTION_PERCENT = 5;
+const int MIN_MOTION_PERCENT = 15;
 const int MAX_THROTTLE_PERCENT = 50;
+
+// =====================================================
+//              MOTOR WEIGHT / TRIM SETTINGS
+// =====================================================
+// Per-motor trim multiplier to correct for one motor being
+// physically stronger/weaker than the other so the vehicle
+// tracks straight under a "W" (forward) command.
+//
+// 1.00 = no change. Lowering a motor's weight reduces its
+// effective throttle; raising it increases it. If the vehicle
+// pulls LEFT while driving forward, the right motor is
+// relatively stronger -> lower RIGHT_MOTOR_WEIGHT (or raise
+// LEFT_MOTOR_WEIGHT). If it pulls RIGHT, do the opposite.
+//
+// Tune in small steps (e.g. 0.02) and re-test "W" until it
+// drives straight. Keep both values reasonably close to 1.0 -
+// this is meant for fine trim, not for steering.
+const float LEFT_MOTOR_WEIGHT  = 1.00;
+const float RIGHT_MOTOR_WEIGHT = 0.70;
 
 // =====================================================
 //                    ESC SETTINGS
@@ -88,11 +107,11 @@ const int W_RIGHT = 10;
 const int S_LEFT  = 0;
 const int S_RIGHT = 0;
 
-const int A_LEFT  = 3;
-const int A_RIGHT = 10;
+const int A_LEFT  = 6;
+const int A_RIGHT = 20;
 
-const int D_LEFT  = 10;
-const int D_RIGHT = 3;
+const int D_LEFT  = 20;
+const int D_RIGHT = 6;
 
 const int E_LEFT  = 20;
 const int E_RIGHT = 20;
@@ -141,8 +160,10 @@ void updateCountdown(unsigned long seconds) {
 // =====================================================
 //                 THROTTLE CONVERSION
 // =====================================================
-
-int throttleToPulse(int throttle) {
+// `weight` is the per-motor trim multiplier (LEFT_MOTOR_WEIGHT /
+// RIGHT_MOTOR_WEIGHT) applied to the requested throttle percent
+// before it's mapped to a pulse width.
+int throttleToPulse(int throttle, float weight) {
 
   if (throttle <= 0) {
     return ESC_MIN;
@@ -150,8 +171,13 @@ int throttleToPulse(int throttle) {
 
   throttle = constrain(throttle, 1, 100);
 
+  // Apply per-motor trim weight to correct for one motor being
+  // physically stronger/weaker than the other.
+  int weightedThrottle = (int)round(throttle * weight);
+  weightedThrottle = constrain(weightedThrottle, 1, 100);
+
   int adjustedThrottle = map(
-    throttle,
+    weightedThrottle,
     1,
     100,
     MIN_MOTION_PERCENT,
@@ -240,8 +266,8 @@ void executeCommand(char command) {
       return;
   }
 
-  int leftPulse = throttleToPulse(leftThrottle);
-  int rightPulse = throttleToPulse(rightThrottle);
+  int leftPulse = throttleToPulse(leftThrottle, LEFT_MOTOR_WEIGHT);
+  int rightPulse = throttleToPulse(rightThrottle, RIGHT_MOTOR_WEIGHT);
 
   esc1.writeMicroseconds(leftPulse);
   esc2.writeMicroseconds(rightPulse);
@@ -269,8 +295,8 @@ void executeManualThrottle(int leftThrottle, int rightThrottle) {
   leftThrottle = constrain(leftThrottle, 0, 100);
   rightThrottle = constrain(rightThrottle, 0, 100);
 
-  int leftPulse = throttleToPulse(leftThrottle);
-  int rightPulse = throttleToPulse(rightThrottle);
+  int leftPulse = throttleToPulse(leftThrottle, LEFT_MOTOR_WEIGHT);
+  int rightPulse = throttleToPulse(rightThrottle, RIGHT_MOTOR_WEIGHT);
 
   esc1.writeMicroseconds(leftPulse);
   esc2.writeMicroseconds(rightPulse);
@@ -664,10 +690,48 @@ void setup() {
 // =====================================================
 //                        LOOP
 // =====================================================
+// =====================================================
+//              SERIAL COMMAND RECEPTION
+// =====================================================
+// Lets you type commands directly into the Serial Monitor
+// (e.g. "W", "A 15 15", "Q") using the same parser as LoRa.
+void checkSerial() {
+
+  static char serialBuf[MAX_INCOMING_LEN + 1];
+  static int serialIdx = 0;
+
+  while (Serial.available()) {
+
+    char c = (char)Serial.read();
+
+    if (c == '\n' || c == '\r') {
+
+      if (serialIdx > 0) {
+        serialBuf[serialIdx] = '\0';
+
+        Serial.print(F("Serial RX <- msg: "));
+        Serial.println(serialBuf);
+
+        processIncomingCommand(serialBuf);
+
+        serialIdx = 0;
+      }
+
+      // Ignore empty lines (e.g. the \r before \n).
+      continue;
+    }
+
+    if (serialIdx < MAX_INCOMING_LEN) {
+      serialBuf[serialIdx++] = c;
+    }
+    // Extra bytes beyond MAX_INCOMING_LEN are dropped, same as LoRa.
+  }
+}
 
 void loop() {
 
   checkLoRa();
+  checkSerial();
   updateTimeout();
 
   //executeManualThrottle(20,20);
