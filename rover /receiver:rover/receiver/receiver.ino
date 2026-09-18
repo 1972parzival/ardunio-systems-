@@ -61,8 +61,8 @@ const int ESC_POWER_PIN = 8;
 //                 THROTTLE SETTINGS
 // =====================================================
 
-const int MIN_MOTION_PERCENT = 20;
-const int MAX_THROTTLE_PERCENT = 60;
+const int MIN_MOTION_PERCENT = 5;
+const int MAX_THROTTLE_PERCENT = 50;
 
 // =====================================================
 //                    ESC SETTINGS
@@ -76,7 +76,7 @@ const unsigned long ESC_STARTUP_TIME = 3000;
 //                  SAFETY / STEP TIMING
 // =====================================================
 
-const unsigned long COMMAND_TIMEOUT = 5000;
+const unsigned long COMMAND_TIMEOUT = 10000;
 
 // =====================================================
 //                 MOTOR COMMAND SETTINGS
@@ -88,11 +88,11 @@ const int W_RIGHT = 10;
 const int S_LEFT  = 0;
 const int S_RIGHT = 0;
 
-const int A_LEFT  = 7;
+const int A_LEFT  = 3;
 const int A_RIGHT = 10;
 
 const int D_LEFT  = 10;
-const int D_RIGHT = 7;
+const int D_RIGHT = 3;
 
 const int E_LEFT  = 20;
 const int E_RIGHT = 20;
@@ -669,4 +669,8 @@ void loop() {
 
   checkLoRa();
   updateTimeout();
+
+  //executeManualThrottle(20,20);
+  //updateTimeout();
+  //delay(12000);
 }
